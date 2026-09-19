@@ -1,0 +1,35 @@
+# ─── Environment Variables (NEVER commit these) ───────────
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ─── Node ─────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Build outputs ────────────────────────────────────────
+frontend/dist/
+frontend/build/
+
+# ─── Prisma generated (regenerate with db:generate) ───────
+backend/node_modules/.prisma/
+
+# ─── OS / Editor ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ─── Logs ─────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── Temp / scratch files ─────────────────────────────────
+backend/testGemini.js
+backend/clearDB.js

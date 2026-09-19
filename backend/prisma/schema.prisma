@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id        String      @id @default(cuid())
+  name      String
+  theme     String
+  date      DateTime
+  venue     String
+  status    EventStatus @default(UPCOMING)
+  sessions  Session[]
+  speakers  Speaker[]
+  meta      EventMeta?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model Speaker {
+  id           String    @id @default(cuid())
+  eventId      String
+  event        Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name         String
+  bio          String
+  topic        String
+  achievements String
+  photoUrl     String?
+  sessions     Session[]
+  createdAt    DateTime  @default(now())
+}
+
+model Session {
+  id               String        @id @default(cuid())
+  eventId          String
+  event            Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  order            Int
+  title            String
+  type             SessionType
+  speakerId        String?
+  speaker          Speaker?      @relation(fields: [speakerId], references: [id])
+  scheduledStart   DateTime
+  scheduledEnd     DateTime
+  actualStart      DateTime?
+  actualEnd        DateTime?
+  status           SessionStatus @default(PENDING)
+  introScript      String?
+  transitionScript String?
+  stallScript      String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([eventId, order])
+}
+
+model EventMeta {
+  id                    String    @id @default(cuid())
+  eventId               String    @unique
+  event                 Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  openingScript         String?
+  closingScript         String?
+  lastDisruptionType    String?
+  lastDisruptionMinutes Int?
+  lastDisruptionAt      DateTime?
+  updatedAt             DateTime  @updatedAt
+}
+
+enum EventStatus {
+  UPCOMING
+  LIVE
+  COMPLETED
+}
+
+enum SessionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  CANCELLED
+}
+
+enum SessionType {
+  KEYNOTE
+  PANEL
+  WORKSHOP
+  BREAK
+  COMPETITION
+  CLOSING
+  OPENING
+}

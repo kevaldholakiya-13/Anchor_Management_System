@@ -151,7 +151,7 @@ async function generateClosingScript(eventId) {
  * Generate stall + updated transition script on disruption.
  * Returns { stallScript, updatedTransition }
  */
-async function generateStallScript({ sessionId, minutesDelayed, reason }) {
+async function generateStallScript({ sessionId, type = 'delay', minutesDelayed = 0, reason }) {
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
     include: {
@@ -169,17 +169,30 @@ async function generateStallScript({ sessionId, minutesDelayed, reason }) {
   const idx = sessions.findIndex((s) => s.id === sessionId);
   const next = idx < sessions.length - 1 ? sessions[idx + 1] : null;
 
-  const prompt = buildStallPrompt({
-    sessionTitle: session.title,
-    minutesDelayed,
-    nextTitle: next?.title || 'the next session',
-    nextSpeaker: next?.speaker?.name,
-    reason,
-  });
+  const isCancellation = type === 'cancellation';
+  let prompt;
+  let fallback;
 
-  const result = await safeGenerate(prompt, FALLBACK_STALL);
-  const stallScript = result.stallScript;
-  const updatedTransition = result.updatedTransition;
+  if (isCancellation) {
+    prompt = `A scheduled session at an event has been cancelled: "${session.title}". Write a brief (under 60 words), graceful, and professional announcement for the emcee to read to inform the audience and seamlessly transition into the next session: "${next?.title || 'our upcoming program'}". Maintain positive energy, avoid blame, and keep the audience excited. Also provide an updated transition line. Return ONLY valid JSON with this exact shape: { "stallScript": "...", "updatedTransition": "..." }`;
+    fallback = {
+      stallScript: `Attention everyone, we have a quick update regarding our schedule. Unfortunately, "${session.title}" will not be taking place today. We apologize for any inconvenience, but we are moving right ahead to ensure you get the most out of our program. We will be starting our next session shortly. Thank you for your understanding!`,
+      updatedTransition: `And now, moving right along with our program, let's turn our attention to ${next?.title || 'our next highlight'}. Here we go!`,
+    };
+  } else {
+    prompt = buildStallPrompt({
+      sessionTitle: session.title,
+      minutesDelayed,
+      nextTitle: next?.title || 'the next session',
+      nextSpeaker: next?.speaker?.name,
+      reason,
+    });
+    fallback = FALLBACK_STALL;
+  }
+
+  const result = await safeGenerate(prompt, fallback);
+  const stallScript = result.stallScript || fallback.stallScript;
+  const updatedTransition = result.updatedTransition || fallback.updatedTransition;
 
   // Save stall script to the delayed session
   await prisma.session.update({

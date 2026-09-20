@@ -39,6 +39,15 @@ router.delete('/:id', async (req, res) => {
 // POST /api/sessions/:id/start — mark session as in progress
 router.post('/:id/start', async (req, res) => {
   try {
+    const existing = await prisma.session.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Session not found' });
+
+    // Ensure parent event is set to LIVE if it was UPCOMING
+    await prisma.event.updateMany({
+      where: { id: existing.eventId, status: 'UPCOMING' },
+      data: { status: 'LIVE' },
+    });
+
     const session = await prisma.session.update({
       where: { id: req.params.id },
       data: { status: 'IN_PROGRESS', actualStart: new Date() },

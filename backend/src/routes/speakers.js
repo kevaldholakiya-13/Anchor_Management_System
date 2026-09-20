@@ -38,7 +38,13 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/speakers/:id
 router.delete('/:id', async (req, res) => {
   try {
-    await prisma.speaker.delete({ where: { id: req.params.id } });
+    await prisma.$transaction([
+      prisma.session.updateMany({
+        where: { speakerId: req.params.id },
+        data: { speakerId: null },
+      }),
+      prisma.speaker.delete({ where: { id: req.params.id } }),
+    ]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -21,9 +21,18 @@ export default function EventsListPage() {
   useEffect(() => { loadEvents(); }, []);
 
   async function loadEvents() {
-    try { const d = await getEvents(); setEvents(d); }
-    catch { setError('Cannot connect to backend. Make sure it is running on :4000'); }
-    finally { setLoading(false); }
+    try {
+      const d = await getEvents();
+      setEvents(d);
+      if (d && d.length > 0) {
+        localStorage.setItem('smartanchor_current_event_id', d[0].id);
+        localStorage.setItem('smartanchor_current_event_name', d[0].name);
+      }
+    } catch {
+      setError('Cannot connect to backend. Make sure it is running on :4000');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleCreate(e) {
@@ -54,35 +63,77 @@ export default function EventsListPage() {
 
   return (
     <Layout>
-      {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Events</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>Manage and run your events from one place</p>
+      {/* ── Events Hero Banner ── */}
+      <div className="event-hero">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, position: 'relative', zIndex: 1 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ padding: '4px 12px', borderRadius: 99, background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                🎙️ SMARTANCHOR CONTROL CENTER
+              </div>
+              {liveEvents > 0 && (
+                <div style={{ padding: '4px 12px', borderRadius: 99, background: 'rgba(62,112,73,0.35)', border: '1px solid rgba(62,112,73,0.6)', fontSize: 11, fontWeight: 700, color: '#a7f3d0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="live-dot" style={{ background: '#34d399' }} />{liveEvents} EVENT LIVE
+                </div>
+              )}
+            </div>
+            <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-0.015em', marginBottom: 8, color: '#ffffff' }}>
+              Events Management
+            </h1>
+            <p style={{ fontSize: 14.5, color: 'rgba(255,255,255,0.88)', maxWidth: 640, lineHeight: 1.6 }}>
+              Sun-baked simplicity for seamless stage orchestration. Organize agendas, manage speakers, generate AI anchor scripts, and monitor live events in real time.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end', flexShrink: 0 }}>
+            <button
+              className="btn"
+              id="new-event-btn"
+              onClick={() => setShowForm(true)}
+              style={{
+                background: '#ffffff',
+                color: 'var(--primary)',
+                fontWeight: 700,
+                fontSize: 13,
+                padding: '11px 22px',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.2)'
+              }}
+            >
+              + New Event
+            </button>
+            {liveEvents > 0 && (
+              <button
+                className="btn btn-sm"
+                style={{ background: 'rgba(62,112,73,0.3)', border: '1px solid rgba(62,112,73,0.6)', color: '#a7f3d0' }}
+                onClick={() => {
+                  const live = events.find((e) => e.status === 'LIVE');
+                  if (live) nav(`/live/${live.id}`);
+                }}
+              >
+                🔴 Jump to Live Dashboard →
+              </button>
+            )}
+          </div>
         </div>
-        <button className="btn btn-primary" id="new-event-btn" onClick={() => setShowForm(true)}>
-          + New Event
-        </button>
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#ede9fe' }}>📅</div>
+          <div className="stat-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>📅</div>
           <div>
             <div className="stat-value">{events.length}</div>
             <div className="stat-label">Total Events</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#dcfce7' }}>🔴</div>
+          <div className="stat-icon" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>🔴</div>
           <div>
             <div className="stat-value" style={{ color: 'var(--success)' }}>{liveEvents}</div>
             <div className="stat-label">Live Now</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#dbeafe' }}>📋</div>
+          <div className="stat-icon" style={{ background: 'var(--bg-card-alt)', color: 'var(--text-secondary)' }}>📋</div>
           <div>
             <div className="stat-value">{totalSessions}</div>
             <div className="stat-label">Total Sessions</div>
@@ -141,7 +192,7 @@ export default function EventsListPage() {
         <div className="card" style={{ padding: 60, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🎪</div>
           <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No events yet</h3>
-          <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: 14 }}>Create your first event to get started with SmartAnchor</p>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: 14 }}>Create your first event to get started with AnchorX</p>
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Create First Event</button>
         </div>
       ) : (
@@ -154,27 +205,27 @@ export default function EventsListPage() {
                 onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
               >
                 {/* Card top bar */}
-                <div style={{ height: 5, background: event.status === 'LIVE' ? 'linear-gradient(90deg, #10b981, #059669)' : event.status === 'COMPLETED' ? '#e2e8f0' : 'linear-gradient(90deg, #6366f1, #4f46e5)' }} />
+                <div style={{ height: 4, background: event.status === 'LIVE' ? 'linear-gradient(90deg, var(--success), #4f8c5c)' : event.status === 'COMPLETED' ? 'var(--border-strong)' : 'linear-gradient(90deg, var(--primary), #d97706)' }} />
                 <div className="card-body">
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                     <span className={`badge ${st.cls}`}>{st.icon} {st.label}</span>
                     <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', fontSize: 13 }} onClick={() => handleDelete(event.id, event.name)} id={`delete-${event.id}`}>🗑️</button>
                   </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, lineHeight: 1.3 }}>{event.name}</h3>
-                  <p style={{ fontSize: 12, color: 'var(--primary-text)', fontWeight: 500, marginBottom: 10 }}>🎯 {event.theme}</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 16 }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      📅 {new Date(event.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, lineHeight: 1.3 }}>{event.name}</h3>
+                  <p style={{ fontSize: 13, color: 'var(--primary-text)', fontWeight: 500, marginBottom: 12 }}>🎯 {event.theme}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 18 }}>
+                    <div style={{ fontSize: 12.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      📅 {event.date && !isNaN(new Date(event.date).getTime()) ? new Date(event.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Date TBA'}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 12.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                       📍 {event.venue}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                    <div style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-base)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+                    <div style={{ padding: '5px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card-alt)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
                       {event._count?.sessions || 0} sessions
                     </div>
-                    <div style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-base)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                    <div style={{ padding: '5px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card-alt)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
                       {event._count?.speakers || 0} speakers
                     </div>
                   </div>

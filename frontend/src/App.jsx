@@ -9,7 +9,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<EventsListPage />} />
         <Route path="/setup/:id?" element={<SetupPage />} />
-        <Route path="/live/:id" element={<LiveDashboardPage />} />
+        <Route path="/live/:id?" element={<LiveDashboardPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

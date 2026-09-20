@@ -51,31 +51,19 @@ export default function ScriptPanel({ session, meta, getScript, scriptLoading, o
   }
 
   return (
-    <div className="glass-card" style={{ padding: '20px 24px' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 16 }}>
+    <div className="card" style={{ padding: '24px 28px' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 16 }}>
         📝 Anchor Scripts
       </div>
 
       {/* Script type tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div className="tab-strip" style={{ marginBottom: 20 }}>
         {SCRIPT_TABS.map((tab) => (
           <button
             key={tab.key}
             id={`script-tab-${tab.key}`}
+            className={`tab-btn ${activeScript === tab.key ? 'active' : ''}`}
             onClick={() => setActiveScript(tab.key)}
-            style={{
-              padding: '7px 14px',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 600,
-              fontFamily: 'inherit',
-              transition: 'all 0.15s',
-              background: activeScript === tab.key ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)',
-              color: activeScript === tab.key ? '#818cf8' : '#64748b',
-              border: activeScript === tab.key ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent',
-            }}
           >
             {tab.label}
           </button>

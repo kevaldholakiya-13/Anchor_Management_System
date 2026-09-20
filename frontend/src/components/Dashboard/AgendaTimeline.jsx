@@ -1,9 +1,9 @@
 const STATUS_CONFIG = {
-  PENDING:     { color: '#475569', bg: 'rgba(71,85,105,0.15)', dot: '#475569' },
-  IN_PROGRESS: { color: '#818cf8', bg: 'rgba(99,102,241,0.15)', dot: '#6366f1' },
-  COMPLETED:   { color: '#34d399', bg: 'rgba(16,185,129,0.1)', dot: '#10b981' },
-  DELAYED:     { color: '#fbbf24', bg: 'rgba(245,158,11,0.15)', dot: '#f59e0b' },
-  CANCELLED:   { color: '#f87171', bg: 'rgba(239,68,68,0.1)', dot: '#ef4444' },
+  PENDING:     { color: 'var(--text-muted)', bg: '#f7f1e7', dot: '#9c8e84' },
+  IN_PROGRESS: { color: 'var(--primary)', bg: '#faeee5', dot: '#c2652a' },
+  COMPLETED:   { color: 'var(--success)', bg: '#edf5ef', dot: '#3e7049' },
+  DELAYED:     { color: 'var(--warning)', bg: '#fdf4ea', dot: '#b8681d' },
+  CANCELLED:   { color: 'var(--danger)', bg: '#faebeb', dot: '#8c3c3c' },
 };
 
 const TYPE_ICONS = {
@@ -13,14 +13,15 @@ const TYPE_ICONS = {
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function fmtTime(d) {
+  if (!d) return '—';
   const dt = new Date(d);
   return `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 }
 
 export default function AgendaTimeline({ sessions = [], currentSessionId }) {
   return (
-    <div className="glass-card" style={{ padding: '22px 20px', height: '100%', overflowY: 'auto' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 20 }}>
+    <div className="card" style={{ padding: '24px 22px', height: '100%', overflowY: 'auto' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 20 }}>
         📋 Today's Agenda
       </div>
 
@@ -37,13 +38,13 @@ export default function AgendaTimeline({ sessions = [], currentSessionId }) {
                 <div style={{
                   width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
                   background: cfg.dot,
-                  boxShadow: isCurrent ? `0 0 10px ${cfg.dot}` : 'none',
+                  boxShadow: isCurrent ? `0 0 8px ${cfg.dot}` : 'none',
                   zIndex: 1,
-                  border: isCurrent ? `2px solid ${cfg.dot}` : 'none',
-                  outline: isCurrent ? `3px solid ${cfg.bg}` : 'none',
+                  border: isCurrent ? `2px solid #ffffff` : 'none',
+                  outline: isCurrent ? `2px solid ${cfg.dot}` : 'none',
                 }} />
                 {!isLast && (
-                  <div style={{ width: 2, flex: 1, minHeight: 24, background: 'rgba(255,255,255,0.07)', margin: '4px 0' }} />
+                  <div style={{ width: 2, flex: 1, minHeight: 24, background: 'var(--border)', margin: '4px 0' }} />
                 )}
               </div>
 
@@ -52,42 +53,42 @@ export default function AgendaTimeline({ sessions = [], currentSessionId }) {
                 style={{
                   flex: 1,
                   padding: '10px 14px',
-                  borderRadius: 10,
+                  borderRadius: 'var(--radius-sm)',
                   marginBottom: isLast ? 0 : 8,
-                  background: isCurrent ? cfg.bg : 'rgba(255,255,255,0.02)',
-                  border: isCurrent ? `1px solid ${cfg.color}40` : '1px solid transparent',
-                  transition: 'all 0.3s ease',
+                  background: isCurrent ? cfg.bg : 'var(--bg-surface-low)',
+                  border: isCurrent ? `1px solid var(--primary-border)` : '1px solid var(--border)',
+                  transition: 'all 0.2s ease',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      fontSize: 13, fontWeight: isCurrent ? 700 : 600,
-                      color: isCurrent ? '#f1f5f9' : '#94a3b8',
+                      fontSize: 13.5, fontWeight: isCurrent ? 700 : 600,
+                      color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)',
                       marginBottom: 2,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                     }}>
                       {TYPE_ICONS[s.type]} {s.title}
                     </div>
                     {s.speaker && (
-                      <div style={{ fontSize: 11, color: '#475569', marginBottom: 4 }}>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 4 }}>
                         {s.speaker.name}
                       </div>
                     )}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: isCurrent ? cfg.color : '#475569', fontWeight: 600 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: isCurrent ? cfg.color : 'var(--text-muted)', fontWeight: 600 }}>
                       {fmtTime(s.scheduledStart)}
                     </div>
-                    <div style={{ fontSize: 11, color: '#334155' }}>–{fmtTime(s.scheduledEnd)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>–{fmtTime(s.scheduledEnd)}</div>
                   </div>
                 </div>
 
                 {s.status === 'DELAYED' && (
-                  <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 4 }}>⏳ Delayed — schedule updated</div>
+                  <div style={{ fontSize: 11, color: 'var(--warning-text)', marginTop: 4 }}>⏳ Delayed — schedule updated</div>
                 )}
                 {s.status === 'CANCELLED' && (
-                  <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>✕ Cancelled</div>
+                  <div style={{ fontSize: 11, color: 'var(--danger-text)', marginTop: 4 }}>✕ Cancelled</div>
                 )}
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import VoiceTransmissionControl from '../VoiceTransmissionControl';
 
 export default function ScriptCard({ scriptKey, script, loading, canGenerate, onGenerate, onSave }) {
   const [editing, setEditing] = useState(false);
@@ -33,8 +34,8 @@ export default function ScriptCard({ scriptKey, script, loading, canGenerate, on
         <div className="skeleton" style={{ height: 14, marginBottom: 6, borderRadius: 6 }} />
         <div className="skeleton" style={{ height: 14, width: '80%', marginBottom: 6, borderRadius: 6 }} />
         <div className="skeleton" style={{ height: 14, width: '60%', borderRadius: 6 }} />
-        <div style={{ marginTop: 12, fontSize: 12, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid #6366f1', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
           Generating script...
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -85,7 +86,7 @@ export default function ScriptCard({ scriptKey, script, loading, canGenerate, on
       )}
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
         <button
           id={`copy-${scriptKey}-btn`}
           className="btn btn-secondary"
@@ -110,6 +111,15 @@ export default function ScriptCard({ scriptKey, script, loading, canGenerate, on
         >
           🔄 Regenerate
         </button>
+      </div>
+
+      <div style={{ marginTop: 8 }}>
+        <VoiceTransmissionControl
+          id={`script-card-${scriptKey}`}
+          text={script}
+          title={`Script: ${scriptKey}`}
+          compact={false}
+        />
       </div>
 
       {editing && (

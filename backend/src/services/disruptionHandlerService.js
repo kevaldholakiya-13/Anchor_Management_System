@@ -95,34 +95,34 @@ async function handleDisruption({ sessionId, type, minutesDelayed = 0, reason, i
     },
   });
 
-  // 6. Fast path: generate stall script and push immediately
-  if (type === 'delay') {
-    try {
-      const { stallScript, updatedTransition, nextSessionId } = await generateStallScript({
-        sessionId,
-        minutesDelayed,
-        reason,
-      });
+  // 6. Fast path: generate announcement/stall script and push immediately
+  try {
+    const { stallScript, updatedTransition, nextSessionId } = await generateStallScript({
+      sessionId,
+      type,
+      minutesDelayed,
+      reason,
+    });
 
-      // Push stall script to anchor dashboard
+    // Push stall script to anchor dashboard
+    io.to(`event:${eventId}`).emit('script:ready', {
+      sessionId,
+      scriptType: 'stallScript',
+      script: stallScript,
+      minutesDelayed,
+      type,
+    });
+
+    // Push updated transition for the next session
+    if (nextSessionId && updatedTransition) {
       io.to(`event:${eventId}`).emit('script:ready', {
-        sessionId,
-        scriptType: 'stallScript',
-        script: stallScript,
-        minutesDelayed,
+        sessionId: nextSessionId,
+        scriptType: 'transitionScript',
+        script: updatedTransition,
       });
-
-      // Push updated transition for the next session
-      if (nextSessionId && updatedTransition) {
-        io.to(`event:${eventId}`).emit('script:ready', {
-          sessionId: nextSessionId,
-          scriptType: 'transitionScript',
-          script: updatedTransition,
-        });
-      }
-    } catch (err) {
-      console.error('[DisruptionHandler] Stall script generation failed:', err.message);
     }
+  } catch (err) {
+    console.error('[DisruptionHandler] Stall script generation failed:', err.message);
   }
 
   return { success: true, sessionId, type, minutesDelayed, eventId };

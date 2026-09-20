@@ -40,9 +40,9 @@ export default function CurrentSessionCard({ session, onStart, onComplete }) {
 
   if (!session) {
     return (
-      <div className="glass-card" style={{ padding: 32, textAlign: 'center' }}>
+      <div className="card" style={{ padding: 36, textAlign: 'center' }}>
         <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
-        <p style={{ color: '#64748b' }}>No active session</p>
+        <p style={{ color: 'var(--text-muted)' }}>No active session</p>
       </div>
     );
   }
@@ -58,13 +58,11 @@ export default function CurrentSessionCard({ session, onStart, onComplete }) {
 
   return (
     <div
-      className="glass-card animate-slide-in"
+      className="card animate-slide-in"
       style={{
         padding: 28,
-        border: `1px solid ${isOverrun ? 'rgba(239,68,68,0.4)' : 'rgba(99,102,241,0.3)'}`,
-        boxShadow: isOverrun
-          ? '0 0 32px rgba(239,68,68,0.15)'
-          : '0 0 32px rgba(99,102,241,0.12)',
+        border: `1px solid ${isOverrun ? 'rgba(140,60,60,0.4)' : 'var(--primary-border)'}`,
+        boxShadow: 'var(--shadow-md)',
         position: 'relative', overflow: 'hidden'
       }}
     >
@@ -72,29 +70,30 @@ export default function CurrentSessionCard({ session, onStart, onComplete }) {
       <div style={{
         position: 'absolute', top: -60, right: -60,
         width: 180, height: 180, borderRadius: '50%',
-        background: isOverrun ? 'rgba(239,68,68,0.06)' : 'rgba(99,102,241,0.08)',
+        background: isOverrun ? 'rgba(140,60,60,0.06)' : 'rgba(194,101,42,0.06)',
         pointerEvents: 'none'
       }} />
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, position: 'relative' }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#6366f1', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
             🔴 Currently On Stage
           </div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.2, letterSpacing: '-0.01em', marginBottom: 8 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em', marginBottom: 8 }}>
             {TYPE_ICONS[session.type]} {session.title}
           </h2>
           {session.speaker && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
-                width: 28, height: 28, borderRadius: 8,
-                background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                background: 'var(--primary-light)',
+                border: '1px solid var(--primary-border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 13, fontWeight: 700, color: '#fff'
+                fontSize: 14, fontWeight: 700, color: 'var(--primary)'
               }}>
                 {session.speaker.name[0]}
               </div>
-              <span style={{ fontSize: 14, color: '#94a3b8' }}>{session.speaker.name}</span>
+              <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500 }}>{session.speaker.name}</span>
             </div>
           )}
         </div>
@@ -102,20 +101,16 @@ export default function CurrentSessionCard({ session, onStart, onComplete }) {
       </div>
 
       {/* Progress bar */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ height: 6, background: 'rgba(255,255,255,0.07)', borderRadius: 99, overflow: 'hidden', marginBottom: 6 }}>
-          <div style={{
-            height: '100%', borderRadius: 99,
-            width: `${progressPct}%`,
-            background: isOverrun
-              ? 'linear-gradient(90deg, #ef4444, #dc2626)'
-              : 'linear-gradient(90deg, #6366f1, #06b6d4)',
-            transition: 'width 1s linear'
-          }} />
+      <div style={{ marginBottom: 18 }}>
+        <div className="progress-bar" style={{ marginBottom: 8 }}>
+          <div
+            className={`progress-fill ${isOverrun ? 'progress-fill-warning' : 'progress-fill-primary'}`}
+            style={{ width: `${progressPct}%` }}
+          />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
           <span>{new Date(session.scheduledStart).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-          <span style={{ color: isOverrun ? '#f87171' : '#94a3b8', fontWeight: 600 }}>
+          <span style={{ color: isOverrun ? 'var(--danger-text)' : 'var(--text-primary)', fontWeight: 600 }}>
             {isOverrun ? `+${Math.abs(mins)}m overrun` : `${mins}m ${String(secs).padStart(2, '0')}s remaining`}
           </span>
           <span>{new Date(session.scheduledEnd).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>

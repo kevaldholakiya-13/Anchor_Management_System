@@ -85,7 +85,13 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/events/:id
 router.delete('/:id', async (req, res) => {
   try {
-    await prisma.event.delete({ where: { id: req.params.id } });
+    await prisma.$transaction([
+      prisma.session.updateMany({
+        where: { eventId: req.params.id },
+        data: { speakerId: null },
+      }),
+      prisma.event.delete({ where: { id: req.params.id } }),
+    ]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

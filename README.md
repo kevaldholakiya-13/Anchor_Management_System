@@ -1,4 +1,4 @@
-# SmartAnchor — AI Event Flow Platform
+# AnchorX — AI Event Flow Platform
 
 > **Bit N Build '26 Gujarat Round — PS-5**
 > AI-powered anchor co-pilot with real-time disruption handling for live college events.

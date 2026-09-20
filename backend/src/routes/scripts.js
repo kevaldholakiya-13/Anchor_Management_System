@@ -47,6 +47,15 @@ router.post('/generate', async (req, res) => {
         return res.status(400).json({ error: `Unknown scriptType: ${scriptType}` });
     }
 
+    if (req.io && eventId) {
+      req.io.to(`event:${eventId}`).emit('script:ready', {
+        eventId,
+        sessionId,
+        scriptType,
+        script,
+      });
+    }
+
     res.json({ success: true, scriptType, script });
   } catch (err) {
     console.error('[ScriptRoute] Error:', err.message);

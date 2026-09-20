@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getLiveStatus, triggerDisruption, updateSession, generateScript, startSession, completeSession } from '../services/api';
+import { getLiveStatus, getEvents, triggerDisruption, updateSession, generateScript, startSession, completeSession } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
 import Layout from '../components/Layout';
+import VoiceTransmissionControl from '../components/VoiceTransmissionControl';
 
 const TYPE_ICONS = { OPENING:'🎪',KEYNOTE:'🎤',PANEL:'👥',WORKSHOP:'🔧',BREAK:'☕',COMPETITION:'🏆',CLOSING:'🎯' };
 const STATUS_CONFIG = {
@@ -17,17 +18,36 @@ function pad(n){ return String(n).padStart(2,'0'); }
 function fmtTime(d){ if(!d) return '—'; const dt=new Date(d); return `${pad(dt.getHours())}:${pad(dt.getMinutes())}`; }
 
 function Countdown({ end }) {
-  const [rem, setRem] = useState(0);
-  useEffect(()=>{
-    if(!end) return;
-    const calc=()=>{ const ms=new Date(end)-new Date(); setRem(Math.max(0,Math.floor(ms/1000))); };
-    calc(); const t=setInterval(calc,1000); return ()=>clearInterval(t);
-  },[end]);
-  const mins=Math.floor(rem/60), secs=rem%60;
-  const over = new Date(end)<new Date();
-  return <span style={{fontFamily:'var(--font-mono)',fontWeight:700,color:over?'var(--danger)':'var(--success)',fontSize:15}}>
-    {over?`+${Math.abs(mins)}m overrun`:`${mins}m ${pad(secs)}s left`}
-  </span>;
+  const [diff, setDiff] = useState(0);
+  useEffect(() => {
+    if (!end) return;
+    const calc = () => {
+      const ms = new Date(end).getTime() - Date.now();
+      setDiff(Math.floor(ms / 1000));
+    };
+    calc();
+    const t = setInterval(calc, 1000);
+    return () => clearInterval(t);
+  }, [end]);
+
+  if (!end) return null;
+  const over = diff < 0;
+  const absSecs = Math.abs(diff);
+  const mins = Math.floor(absSecs / 60);
+  const secs = absSecs % 60;
+
+  return (
+    <span
+      style={{
+        fontFamily: 'var(--font-mono)',
+        fontWeight: 700,
+        color: over ? 'var(--danger)' : 'var(--success)',
+        fontSize: 15,
+      }}
+    >
+      {over ? `+${mins}m ${pad(secs)}s overrun` : `${mins}m ${pad(secs)}s left`}
+    </span>
+  );
 }
 
 function ScriptBox({ script, loading, canGen, onGen, onSave, scriptKey }) {
@@ -44,13 +64,20 @@ function ScriptBox({ script, loading, canGen, onGen, onSave, scriptKey }) {
         ? <textarea id={`edit-${scriptKey}`} className="script-edit-area" value={val} onChange={e=>setVal(e.target.value)} onBlur={()=>{setEditing(false);onSave&&onSave(val);}} autoFocus style={{marginBottom:12,minHeight:110}} />
         : <div id={`script-${scriptKey}`} className="script-box" style={{marginBottom:12,cursor:'text'}} onClick={()=>{setVal(script);setEditing(true);}}>{script}</div>
       }
-      <div style={{display:'flex',gap:8}}>
+      <div style={{display:'flex',gap:8,marginBottom:script?10:0}}>
         <button id={`copy-${scriptKey}`} className="btn btn-ghost btn-sm" onClick={()=>{navigator.clipboard.writeText(script);setCopied(true);setTimeout(()=>setCopied(false),2000);}}>
           {copied?'✅ Copied':'📋 Copy'}
         </button>
         <button id={`edit-btn-${scriptKey}`} className="btn btn-ghost btn-sm" onClick={()=>{setVal(script);setEditing(true);}}>✏️ Edit</button>
         <button id={`regen-${scriptKey}`} className="btn btn-ghost btn-sm" onClick={onGen}>🔄 Regen</button>
       </div>
+      {script && (
+        <VoiceTransmissionControl
+          text={script}
+          id={`voice-live-${scriptKey}`}
+          btnLabel="Transmit to Stage"
+        />
+      )}
     </div>
   );
 }
@@ -69,11 +96,30 @@ export default function LiveDashboardPage() {
   const [triggering, setTriggering] = useState(false);
   const [activities, setActivities] = useState([]);
 
+  useEffect(() => {
+    if (!id) {
+      getEvents().then((events) => {
+        if (events && events.length > 0) {
+          const live = events.find((e) => e.status === 'LIVE') || events[0];
+          nav(`/live/${live.id}`, { replace: true });
+        } else {
+          nav('/', { replace: true });
+        }
+      }).catch(() => nav('/', { replace: true }));
+    }
+  }, [id, nav]);
+
   const load = useCallback(async () => {
+    if (!id) return;
     try { const d = await getLiveStatus(id); setData(d); setLoading(false); } catch(e) { setLoading(false); }
   }, [id]);
 
-  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load]);
+  useEffect(() => {
+    if (!id) return;
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, [id, load]);
 
   useSocket(id, {
     onSessionUpdate: (d) => { addActivity('📋','Schedule updated',d.disruption?.sessionTitle||''); load(); },
@@ -137,6 +183,21 @@ export default function LiveDashboardPage() {
 
   const { event, currentSession:cur, nextSession:next, sessions=[], meta } = data||{};
 
+  if(!event) return (
+    <Layout>
+      <div className="card" style={{ padding: 48, textAlign: 'center', maxWidth: 540, margin: '40px auto' }}>
+        <div style={{ fontSize: 44, marginBottom: 16 }}>🎙️</div>
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>Live Event Not Found</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: 13.5, lineHeight: 1.6 }}>
+          Could not locate this event's live stream. Please check your event list or select an active event to start anchoring.
+        </p>
+        <button className="btn btn-primary" onClick={() => nav('/')}>
+          ← View All Events
+        </button>
+      </div>
+    </Layout>
+  );
+
   const completedCount = sessions.filter(s=>s.status==='COMPLETED').length;
   const totalCount = sessions.length;
   const speakerCount = [...new Set(sessions.filter(s=>s.speakerId).map(s=>s.speakerId))].length;
@@ -144,50 +205,69 @@ export default function LiveDashboardPage() {
   const SCRIPT_TABS = [
     { key:'intro', label:'🎤 Intro', script:cur?getScript(cur.id,'introScript',cur):null, loading:cur&&scriptLoading[`${cur.id}-introScript`], canGen:!!cur?.speakerId, sessionId:cur?.id, scriptType:'intro' },
     { key:'transition', label:'🔀 Transition', script:cur?getScript(cur.id,'transitionScript',cur):null, loading:cur&&scriptLoading[`${cur.id}-transitionScript`], canGen:!!cur, sessionId:cur?.id, scriptType:'transition' },
-    { key:'opening', label:'🎪 Opening', script:meta?.openingScript, loading:scriptLoading[`${id}-opening`], canGen:true, sessionId:null, scriptType:'opening' },
-    { key:'closing', label:'🎯 Closing', script:meta?.closingScript, loading:scriptLoading[`${id}-closing`], canGen:true, sessionId:null, scriptType:'closing' },
+    { key:'opening', label:'🎪 Opening', script:scriptUpdates[`${id}-opening`] || meta?.openingScript, loading:scriptLoading[`${id}-opening`], canGen:true, sessionId:null, scriptType:'opening' },
+    { key:'closing', label:'🎯 Closing', script:scriptUpdates[`${id}-closing`] || meta?.closingScript, loading:scriptLoading[`${id}-closing`], canGen:true, sessionId:null, scriptType:'closing' },
   ];
   const activeTab = SCRIPT_TABS.find(t=>t.key===activeScript);
 
-  const progressPct = cur ? (()=>{
-    const start=new Date(cur.scheduledStart), end=new Date(cur.scheduledEnd), now=new Date();
-    return Math.min(100,Math.max(0,((now-start)/(end-start))*100));
+  const progressPct = cur ? (() => {
+    const start = new Date(cur.scheduledStart).getTime();
+    const end = new Date(cur.scheduledEnd).getTime();
+    const now = Date.now();
+    const total = end - start;
+    if (isNaN(total) || total <= 0) return 0;
+    const pct = ((now - start) / total) * 100;
+    return isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct));
   })() : 0;
 
   return (
     <Layout eventId={id} eventName={event?.name} isLive>
       {/* ── Event Hero ── */}
       <div className="event-hero">
-        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:20,position:'relative',zIndex:1}}>
-          <div>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-              <div style={{padding:'3px 10px',borderRadius:99,background:'rgba(16,185,129,0.2)',border:'1px solid rgba(16,185,129,0.4)',fontSize:11,fontWeight:700,color:'#34d399',display:'flex',alignItems:'center',gap:6}}>
-                <div className="live-dot" style={{background:'#34d399'}}/>LIVE EVENT
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:24,position:'relative',zIndex:1}}>
+          <div style={{flex:1}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+              <div style={{padding:'4px 12px',borderRadius:99,background:'rgba(255,255,255,0.18)',border:'1px solid rgba(255,255,255,0.3)',fontSize:11,fontWeight:700,color:'#ffffff',display:'flex',alignItems:'center',gap:6}}>
+                <div className="live-dot" style={{background:'#ffffff'}}/>LIVE EVENT
               </div>
             </div>
-            <h1 style={{fontSize:26,fontWeight:800,letterSpacing:'-0.02em',marginBottom:6}}>{event?.name}</h1>
-            <p style={{fontSize:14,color:'rgba(255,255,255,0.65)',marginBottom:16}}>{event?.theme}</p>
-            <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
-              <div style={{display:'flex',alignItems:'center',gap:6,fontSize:13,color:'rgba(255,255,255,0.7)'}}>📅 {new Date(event?.date||new Date()).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div>
-              <div style={{display:'flex',alignItems:'center',gap:6,fontSize:13,color:'rgba(255,255,255,0.7)'}}>📍 {event?.venue}</div>
-              <div style={{display:'flex',alignItems:'center',gap:6,fontSize:13,color:'rgba(255,255,255,0.7)'}}>🎤 {event?.theme?.split(':')[0]||'Hackathon'}</div>
+            <h1 style={{fontSize:32,fontWeight:700,letterSpacing:'-0.015em',marginBottom:8,color:'#ffffff'}}>
+              {event?.name || 'AnchorX Live Event'}
+            </h1>
+            <p style={{fontSize:14.5,color:'rgba(255,255,255,0.88)',marginBottom:18,lineHeight:1.5}}>
+              🎯 {event?.theme || 'Real-time stage orchestration'}
+            </p>
+            <div style={{display:'flex',gap:24,flexWrap:'wrap',fontSize:13,color:'rgba(255,255,255,0.9)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,color:'#ffffff'}}>
+                📅 {new Date(event?.date||new Date()).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:6,color:'#ffffff'}}>
+                📍 {event?.venue || 'Main Stage'}
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:6,color:'#ffffff'}}>
+                🎤 {event?.theme?.split(':')[0]||'Live Flow'}
+              </div>
             </div>
           </div>
           {/* Quote */}
-          <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'var(--radius)',padding:'16px 20px',maxWidth:240,flexShrink:0}}>
-            <p style={{fontSize:13,fontStyle:'italic',color:'rgba(255,255,255,0.8)',lineHeight:1.6,marginBottom:8}}>"Great events aren't just planned, they're orchestrated."</p>
-            <p style={{fontSize:11,color:'rgba(255,255,255,0.4)',fontWeight:600}}>— SmartAnchor</p>
+          <div style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:'var(--radius)',padding:'18px 22px',maxWidth:270,flexShrink:0}}>
+            <p style={{fontSize:13.5,fontStyle:'italic',color:'rgba(250,246,240,0.95)',lineHeight:1.6,marginBottom:8}}>
+              "Great events aren't just planned, they're orchestrated."
+            </p>
+            <p style={{fontSize:11,color:'rgba(250,246,240,0.65)',fontWeight:600}}>
+              — AnchorX · Warm Editorial Stagecraft
+            </p>
           </div>
         </div>
       </div>
 
       {/* ── Quick Stats ── */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
         {[
-          { icon:'📋', label:'Total Sessions', value:totalCount, bg:'#ede9fe', color:'var(--primary)' },
-          { icon:'✅', label:'Completed', value:completedCount, bg:'#dcfce7', color:'var(--success)' },
-          { icon:'⏳', label:'Remaining', value:totalCount-completedCount, bg:'#fef3c7', color:'var(--warning)' },
-          { icon:'🎤', label:'Speakers', value:speakerCount, bg:'#dbeafe', color:'var(--info)' },
+          { icon:'📋', label:'Total Sessions', value:totalCount, bg:'var(--primary-light)', color:'var(--primary)' },
+          { icon:'✅', label:'Completed', value:completedCount, bg:'var(--success-bg)', color:'var(--success)' },
+          { icon:'⏳', label:'Remaining', value:totalCount-completedCount, bg:'var(--warning-bg)', color:'var(--warning)' },
+          { icon:'🎤', label:'Speakers', value:speakerCount, bg:'var(--bg-card-alt)', color:'var(--text-secondary)' },
         ].map(s=>(
           <div key={s.label} className="stat-card">
             <div className="stat-icon" style={{background:s.bg}}>{s.icon}</div>
@@ -220,7 +300,15 @@ export default function LiveDashboardPage() {
                   </div>
               }
               {disruption.stallScript && (
-                <button id="copy-stall-btn" className="btn btn-ghost btn-sm" onClick={()=>navigator.clipboard.writeText(disruption.stallScript)}>📋 Copy Stall Script</button>
+                <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginTop:8}}>
+                  <button id="copy-stall-btn" className="btn btn-ghost btn-sm" onClick={()=>navigator.clipboard.writeText(disruption.stallScript)}>📋 Copy Stall Script</button>
+                  <VoiceTransmissionControl
+                    id={`stall-${disruption.sessionTitle||'current'}`}
+                    text={disruption.stallScript}
+                    title="Anchor Disruption Stall Script"
+                    compact={true}
+                  />
+                </div>
               )}
             </div>
             <button onClick={()=>setDisruption(null)} style={{background:'none',border:'none',fontSize:18,cursor:'pointer',color:'var(--text-muted)',flexShrink:0}} id="dismiss-disruption">✕</button>
@@ -240,18 +328,31 @@ export default function LiveDashboardPage() {
             {cur ? (
               <>
                 {cur.speaker && (
-                  <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:16,padding:'14px',background:'var(--bg-base)',borderRadius:'var(--radius)'}}>
-                    <div style={{width:52,height:52,borderRadius:'var(--radius-sm)',background:'linear-gradient(135deg,#6366f1,#06b6d4)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,fontWeight:700,color:'#fff',flexShrink:0}}>
-                      {cur.speaker.name[0]}
+                  <div style={{marginBottom:16,padding:'14px',background:'var(--bg-card-alt)',border:'1px solid var(--border)',borderRadius:'var(--radius)'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:8}}>
+                      <div style={{width:48,height:48,borderRadius:'var(--radius-sm)',background:'var(--primary-light)',border:'1px solid var(--primary-border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,color:'var(--primary)',flexShrink:0}}>
+                        {cur.speaker.name[0]}
+                      </div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:15,fontWeight:700}}>{cur.speaker.name}</div>
+                        <div style={{fontSize:12,color:'var(--text-muted)'}}>{cur.speaker.topic}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{fontSize:15,fontWeight:700}}>{cur.speaker.name}</div>
-                      <div style={{fontSize:12,color:'var(--text-muted)'}}>{cur.speaker.topic}</div>
-                    </div>
+                    {cur.speaker.bio && (
+                      <p style={{fontSize:12.5,color:'var(--text-secondary)',lineHeight:1.5,marginBottom:10}}>
+                        {cur.speaker.bio}
+                      </p>
+                    )}
+                    <VoiceTransmissionControl
+                      id={`live-speaker-${cur.speaker.id||cur.speaker.name}`}
+                      text={`Speaker: ${cur.speaker.name}. Presentation: ${cur.speaker.topic || cur.title}. ${cur.speaker.bio || ''} ${cur.speaker.keyAchievements ? `Key achievements: ${cur.speaker.keyAchievements}` : ''}`}
+                      title={`Speaker Brief: ${cur.speaker.name}`}
+                      compact={true}
+                    />
                   </div>
                 )}
-                <h3 style={{fontSize:17,fontWeight:700,marginBottom:4}}>{TYPE_ICONS[cur.type]} {cur.title}</h3>
-                <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:16}}>
+                <h3 style={{fontSize:18,fontWeight:700,marginBottom:6}}>{TYPE_ICONS[cur.type]} {cur.title}</h3>
+                <div style={{fontSize:12.5,color:'var(--text-muted)',marginBottom:16}}>
                   {fmtTime(cur.scheduledStart)} – {fmtTime(cur.scheduledEnd)}
                 </div>
                 <div className="progress-bar" style={{marginBottom:8}}>
@@ -284,8 +385,18 @@ export default function LiveDashboardPage() {
             <div className="card-body">
               {next ? (
                 <>
-                  <h3 style={{fontSize:15,fontWeight:700,marginBottom:4}}>{TYPE_ICONS[next.type]} {next.title}</h3>
-                  {next.speaker&&<p style={{fontSize:13,color:'var(--text-secondary)',marginBottom:10}}>👤 {next.speaker.name}</p>}
+                  <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>{TYPE_ICONS[next.type]} {next.title}</h3>
+                  {next.speaker && (
+                    <div style={{marginBottom:10}}>
+                      <p style={{fontSize:13,color:'var(--text-secondary)',marginBottom:6}}>👤 {next.speaker.name}</p>
+                      <VoiceTransmissionControl
+                        id={`next-speaker-${next.speaker.id||next.speaker.name}`}
+                        text={`Upcoming Speaker: ${next.speaker.name}. Presentation: ${next.speaker.topic || next.title}. ${next.speaker.bio || ''}`}
+                        title={`Upcoming: ${next.speaker.name}`}
+                        compact={true}
+                      />
+                    </div>
+                  )}
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                     <span style={{fontSize:12,color:'var(--text-muted)'}}>Scheduled</span>
                     <span style={{fontFamily:'var(--font-mono)',fontSize:14,fontWeight:700,color:'var(--primary)'}}>{fmtTime(next.scheduledStart)}</span>
@@ -303,17 +414,17 @@ export default function LiveDashboardPage() {
             <div className="card-body-sm">
               {cur ? (
                 <>
-                  <p style={{fontSize:12,color:'var(--text-muted)',marginBottom:12}}>Trigger disruption handling for the current session</p>
+                  <p style={{fontSize:12.5,color:'var(--text-muted)',marginBottom:14}}>Trigger disruption handling for the current session</p>
                   <div style={{display:'flex',flexDirection:'column',gap:8}}>
                     <button id="trigger-delay-btn" className="btn btn-danger" style={{justifyContent:'center'}} onClick={()=>setDelayModal(true)} disabled={triggering}>
                       ⏳ Mark Session Delayed
                     </button>
-                    <button id="trigger-cancel-btn" className="btn btn-ghost" style={{justifyContent:'center',borderColor:'#fca5a5',color:'var(--danger)'}} onClick={()=>handleDisruption('cancellation')} disabled={triggering}>
+                    <button id="trigger-cancel-btn" className="btn btn-ghost" style={{justifyContent:'center',borderColor:'var(--danger)',color:'var(--danger)'}} onClick={()=>handleDisruption('cancellation')} disabled={triggering}>
                       ✕ Cancel Session
                     </button>
                   </div>
                   {delayModal && (
-                    <div style={{marginTop:14,padding:14,background:'var(--danger-bg)',borderRadius:'var(--radius-sm)',border:'1px solid #fca5a5'}}>
+                    <div style={{marginTop:14,padding:14,background:'var(--danger-bg)',borderRadius:'var(--radius-sm)',border:'1px solid rgba(163,56,32,0.25)'}}>
                       <p style={{fontSize:13,fontWeight:600,marginBottom:10,color:'var(--danger-text)'}}>How many minutes delayed?</p>
                       <div style={{display:'flex',gap:8,alignItems:'center'}}>
                         <input id="delay-minutes-input" type="number" min="1" max="60" value={delayMins} onChange={e=>setDelayMins(Number(e.target.value))} className="form-input" style={{width:80}}/>
